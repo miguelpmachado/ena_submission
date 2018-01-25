@@ -35,6 +35,8 @@ To upload your files to ENA, you will need the following:
   MN127.R1.fastq.gz
   
   MN127.R2.fastq.gz
+  
+  If your files end differently (from ".R1.fastq.gz" and ".R2.fastq.gz"), provide the proper files end with --fastq_end option
 
   Otherwise, if you are uploading a different type of file, like bam files or fasta files, you can name them whatever you like but they should have the prefix at the end, e.g. .bam or .fasta.  Use the -F flag to do so, e.g. -F bam.
 
@@ -213,6 +215,13 @@ You should familarise yourself with the other options before you begin running t
     --out_dir OUT_DIR, -o OUT_DIR
                           please provide the path to the output directory which
                           will include all the xml files.
+    --fastq_ends .R1.fastq.gz .R2.fastq.gz
+                          By default, ena_submission.py searches for pair-end
+                          fastq files ending with ".R1.fastq.gz" and
+                          ".R2.fastq.gz". If your fastq files end differently,
+                          you can provide two strings containning the end of
+                          fastq files names (for example, "_1.fastq.gz" and
+                          "_2.fastq.gz")
 
 
 ## Contact
