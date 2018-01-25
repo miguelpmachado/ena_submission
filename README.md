@@ -175,9 +175,12 @@ You should familarise yourself with the other options before you begin running t
                           is needed to generate the study.xml file. The file
                           should be in the following format: full title of the
                           project abstract
-    --center_name CENTER_NAME, -c CENTER_NAME
-                          Please provide the center name
-    --refname REFNAME, -r REFNAME
+    -c "Public Health England", --center_name "Public Health England"
+                          Please provide the center name. The center name is a
+                          controlled vocabulary identifying the sequencing
+                          center, core facility, consortium, or laboratory
+                          responsible for the study.
+    -r PHE_20180125, --refname PHE_20180125
                           Please provide the unique name for the whole
                           submission. This name must not have been used before
                           in any other submission to ENA.

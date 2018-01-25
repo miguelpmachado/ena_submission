@@ -1,18 +1,17 @@
 #!/usr/bin/env python2
 
-import os, os.path, sys, subprocess, glob, inspect
+import os, sys, inspect
+import argparse
+import textwrap
 
 module_folder_paths = ["modules"]
-
 for module_folder_path in module_folder_paths:
     module_folder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],module_folder_path)))
     if module_folder not in sys.path:
         sys.path.insert(1, module_folder)
 
 import populate_data_to_ENA
-import argparse
-from argparse import RawTextHelpFormatter
-import textwrap
+
 
 class MultilineFormatter(argparse.HelpFormatter):
     # class to provide new lines when comments below are displayed in git.
@@ -195,8 +194,18 @@ Merge the remote changes before pushing again
     parser.add_argument('--ftp_user_name', '-user', help='please provide the ftp user name')
     parser.add_argument('--ftp_password', '-pass', help='please provide the ftp password')
     parser.add_argument('--title_and_abstract_file', '-a', help='please provide the title and abstract text file.  This is needed to generate the study.xml file.  The file should be in the following format: full title of the project\tabstract')
-    parser.add_argument('--center_name', '-c', help='Please provide the center name')
-    parser.add_argument('--refname', '-r', help='Please provide the unique name for the whole submission. This name must not have been used before in any other submission to ENA.')
+    parser.add_argument('-c', '--center_name',
+                        type=str,
+                        metavar='"Public Health England"',
+                        help='Please provide the center name. The center name is a controlled vocabulary identifying'
+                             ' the sequencing center, core facility, consortium, or laboratory responsible for the'
+                             ' study.',
+                        required=True)
+    parser.add_argument('-r', '--refname',
+                        type=str,
+                        nargs=1,
+                        metavar='PHE_20180125',
+                        help='Please provide the unique name for the whole submission. This name must not have been used before in any other submission to ENA.')
     parser.add_argument('--library_strategy', '-s', help='please provide the library strategy used. default = WGS', default='WGS')#
     parser.add_argument('--library_source', '-u', help='please provide the library source used. default = GENOMIC', default='GENOMIC')
     parser.add_argument('--library_selection', '-e', help='please provide the library selection used. default = RANDOM', default='RANDOM')
@@ -212,6 +221,13 @@ Merge the remote changes before pushing again
     parser.add_argument('--out_dir', '-o', help='please provide the path to the output directory which will include all the xml files.')
     parser.add_argument('--fastq_ends', nargs=2, type=str, metavar=('.R1.fastq.gz', '.R2.fastq.gz'), help='By default, ena_submission.py searches for pair-end fastq files ending with ".R1.fastq.gz" and ".R2.fastq.gz". If your fastq files end differently, you can provide two strings containning the end of fastq files names (for example, "_1.fastq.gz" and "_2.fastq.gz")', required=False, default=('.R1.fastq.gz', '.R2.fastq.gz'))
     opts = parser.parse_args()
+
+    # Check --refname only contains one word
+    if not isinstance(opts.refname, str):
+        raise argparse.ArgumentTypeError('{argument_name} must be a string'.format(argument_name='--refname'))
+    else:
+        if len(values.split(' ')) > 1:
+            raise argparse.ArgumentTypeError('{argument_name} requires only one word'.format(argument_name='--refname'))
 
     return opts
 
