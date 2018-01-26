@@ -222,7 +222,7 @@ You should familarise yourself with the other options before you begin running t
                           By default, ena_submission.py searches for pair-end
                           fastq files ending with ".R1.fastq.gz" and
                           ".R2.fastq.gz". If your fastq files end differently,
-                          you can provide two strings containning the end of
+                          you can provide two strings containing the end of
                           fastq files names (for example, "_1.fastq.gz" and
                           "_2.fastq.gz")
 

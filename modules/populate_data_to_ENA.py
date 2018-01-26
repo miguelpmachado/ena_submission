@@ -55,7 +55,7 @@ def check_data_file(data_file):
     for lineNum, line in enumerate(meta_data_file):
         if lineNum == 0:
             headings_stripped = line.strip()
-            headings = headings_stripped.split(',')
+            headings = headings_stripped.split('\t')
             # if the data_file_heading list has the heading in the data_file
             if set(headings).issuperset(set(data_file_heading)):
                 # Now compare the order...
@@ -181,7 +181,7 @@ def create_checksums_file(dir_of_input_data, refname, filetype, fastq_ends):
         sys.exit()
 
 
-def upload_data_to_ena_ftp_server(dir_of_input_data, refname, ftp_user_name, ftp_password, filetype, fastq_end):
+def upload_data_to_ena_ftp_server(dir_of_input_data, refname, ftp_user_name, ftp_password, filetype, fastq_ends):
     '''
 	upload_data_to_ena_ftp_server(dir_of_input_data,refname,ftp_user_name,ftp_password)
 
@@ -245,7 +245,7 @@ def upload_data_to_ena_ftp_server(dir_of_input_data, refname, ftp_user_name, ftp
                 files = [os.path.join(dir_of_input_data, f) for f in os.listdir(dir_of_input_data)
                          if not f.startswith('.')
                          and os.path.isfile(os.path.join(dir_of_input_data, f))
-                         and f.endswith(fastq_end)]
+                         and f.endswith(fastq_ends)]
             else:
                 files = glob.glob(dir_of_input_data + "/" + "*." + filetype)
 
@@ -254,7 +254,6 @@ def upload_data_to_ena_ftp_server(dir_of_input_data, refname, ftp_user_name, ftp
                 (SeqDir, seqFileName) = os.path.split(file)
                 # if the sample has already been uploaded, check the file size number. If its the same as the dir file size then move on otherwise upload it again.
                 if seqFileName in ftp.nlst():
-
                     fileSize_in_ftp = ftp.size(seqFileName)
                     fileSize_in_dir = os.path.getsize(str(file))
                     if fileSize_in_dir != fileSize_in_ftp:
@@ -266,7 +265,8 @@ def upload_data_to_ena_ftp_server(dir_of_input_data, refname, ftp_user_name, ftp
                     print "uploading", file, "to ENA ftp server.\n"
                     ftp.storbinary('STOR ' + seqFileName, open(file, 'rb'))
             break
-        except:
+        except Exception as e:
+            print(e)
             print "Something went wrong with ftp, lets try again...."
     else:
         print "Oops! something has gone wrong while uploading data to the ENA ftp server!"
@@ -307,7 +307,7 @@ def indent(elem, level=0):
             elem.tail = i
 
 
-def create_dict_with_data(dir_of_input_data, refname, data_file, delim="\t", header=True):
+def create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends, header=True):
     '''
 	create_dict_with_data(dir_of_input_data,refname,data_file)
 
@@ -319,6 +319,7 @@ def create_dict_with_data(dir_of_input_data, refname, data_file, delim="\t", hea
 	refname, str: You must provide a reference name for your study, e.g. phe_ecoli
 	data_file, file : this csv file must have at least three columns seperated by commas in the following order and with the following headings:  Column 1: SAMPLE, Column 2: TAXON_ID, Column 3: SCIENTIFIC_NAME, Column 4: DESCRIPTION.  If you like to add further data then add it after the DESCRIPTION column.
 	header, True or False :  if True the first line will be considered a header line
+    fastq_ends, tuple: Tuple of strings of size 2 with fastq files end, e.g. ('.R1.fastq.gz', '.R2.fastq.gz')
 
 
 	return
@@ -334,18 +335,22 @@ def create_dict_with_data(dir_of_input_data, refname, data_file, delim="\t", hea
 
     with open(dir_of_input_data + '/' + refname + '_checksums.md5', 'rb') as f:
         sample_id_and_data = []
-        for l in f:
-            splitLine = l.split()
-            sample_name_split = splitLine[1].split(".")
-            sample_id_and_data.append(str(sample_name_split[0]))
+        for line in f:
+            line = line.split()[1]
+            for fastq_end in fastq_ends:
+                sample_name = rchop(line, fastq_end)
+                if len(sample_name) < len(line):
+                    sample_id_and_data.append(sample_name)
+                    break
         # values are nil at the moment as we will populate them only if there is a data_file provided.
         # sample_id_and_data[str(sample_name_split[0])] = ""
 
     strain_names = set(sample_id_and_data)
+    print('AAAA', strain_names)
 
     for lineNum, line in enumerate(meta_data_file):
         if lineNum == 0:
-            headings = line.split(',')
+            headings = line.split('\t')
             i = 0
             for heading in headings:
                 heading = heading.strip()
@@ -360,7 +365,7 @@ def create_dict_with_data(dir_of_input_data, refname, data_file, delim="\t", hea
         else:
             strip_line = line.strip()
             # cells is a list of each of the lines in the data file, e.g. ['ST38_21', '562', 'Escherichia coli', 'OXA-48 producer', 'North West_3', '28_2014']
-            cells = strip_line.split(',')
+            cells = strip_line.split('\t')
             x = 0
             # if the sample name (cells[0]) is in the strain names obtained from the checksums file then add to dict cols
             if cells[0] in strain_names:
@@ -373,14 +378,15 @@ def create_dict_with_data(dir_of_input_data, refname, data_file, delim="\t", hea
                 except EOFError:
                     print "ERROR: something is wrong with the " + data_file + " file."
             else:
-                print "ERROR: " + cells[
-                    0] + " from the " + data_file + " is not equivalent to the sample name you have labelled your files in" + "".join(
-                    strain_names)
-                sys.exit()
+                msg = 'ERROR: {sample} from the {data_file} is not equivalent to samples name you have labelled your' \
+                      ' sequecing files in:\n' \
+                      '{samples_files}'.format(sample=cells[0], data_file=data_file,
+                                               samples_files='\n'.join(strain_names))
+                sys.exit(msg)
     return cols
 
 
-def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir):
+def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir, fastq_ends):
     '''
 	create_checksums_file(dir_of_input_data,refname)
 
@@ -394,6 +400,7 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir):
     center_name, str : name of the center, e.g. PHE
     taxon_id, str : the taxon id of the organism from NCBI
     out_dir, str : path to the output directory where all the xml files will be added.
+    fastq_ends, tuple: Tuple of strings of size 2 with fastq files end, e.g. ('.R1.fastq.gz', '.R2.fastq.gz')
 
     return
     ------
@@ -402,7 +409,7 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir):
 
  	'''
 
-    sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file)
+    sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
     # print sample_id_and_data
     if set(('SAMPLE', 'TAXON_ID', 'SCIENTIFIC_NAME', 'DESCRIPTION')) <= set(sample_id_and_data):
         sample_set = ET.Element('SAMPLE_SET')
@@ -460,8 +467,16 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir):
     print "\nSuccessfully created sample.xml file\n"
 
 
+'''
+('AAAA', set(['SRR3320580', 'SRR1790752']))
+
+Successfully created sample.xml file
+
+('AAAA', set([]))
+'''
+# TODO: ERROR: SRR1790752 from the ./mpmachado_stuff.test/data_file.txt is not equivalent to samples name you have labelled your sequecing files in:
 def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_strategy, library_source,
-                   library_selection, read_length, read_sdev, instrument_model, out_dir=""):
+                   library_selection, read_length, read_sdev, instrument_model, fastq_ends, out_dir=""):
     '''
 	experiment_xml(dir_of_input_data,data_file,refname,center_name,library_strategy,library_source,library_selection,read_length,read_sdev,instrument_model,out_dir=""):
 	This function generates a experiment xml file needed for submission of data to ENA.  It will contain a subelement for each sample provided in the data_file.
@@ -486,7 +501,7 @@ def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_s
     outfile, file : a experiment xml file needed for ENA submission.
 
 	'''
-    sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file)
+    sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
     # set the root element
     experiment_set = ET.Element('EXPERIMENT_SET')
 
