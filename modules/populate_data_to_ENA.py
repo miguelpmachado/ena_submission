@@ -346,7 +346,6 @@ def create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends, hea
         # sample_id_and_data[str(sample_name_split[0])] = ""
 
     strain_names = set(sample_id_and_data)
-    print('AAAA', strain_names)
 
     for lineNum, line in enumerate(meta_data_file):
         if lineNum == 0:
@@ -409,13 +408,7 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir, fast
 
  	'''
 
-    print('sample_xml')
-    print('dir_of_input_data', dir_of_input_data)
-    print('refname', refname)
-    print('data_file', data_file)
-    print('fastq_ends', fastq_ends)
     sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
-    print('sample_id_and_data', sample_id_and_data)
     if set(('SAMPLE', 'TAXON_ID', 'SCIENTIFIC_NAME', 'DESCRIPTION')) <= set(sample_id_and_data):
         sample_set = ET.Element('SAMPLE_SET')
         sample_scientific_name_description = set(['SAMPLE', 'TAXON_ID', 'SCIENTIFIC_NAME', 'DESCRIPTION'])
@@ -472,14 +465,6 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir, fast
     print "\nSuccessfully created sample.xml file\n"
 
 
-'''
-('AAAA', set(['SRR3320580', 'SRR1790752']))
-
-Successfully created sample.xml file
-
-('AAAA', set([]))
-'''
-# TODO: ERROR: SRR1790752 from the ./mpmachado_stuff.test/data_file.txt is not equivalent to samples name you have labelled your sequecing files in:
 def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_strategy, library_source,
                    library_selection, read_length, read_sdev, instrument_model, fastq_ends, out_dir=""):
     '''
@@ -499,6 +484,7 @@ def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_s
     read_sdev, int : default 0.0
     instrument_model, int : default "Illumina HiSeq 2500"
     out_dir, str : name of the new xml file
+    fastq_ends, tuple: Tuple of strings of size 2 with fastq files end, e.g. ('.R1.fastq.gz', '.R2.fastq.gz')
 
     return
     ------
@@ -506,13 +492,7 @@ def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_s
     outfile, file : a experiment xml file needed for ENA submission.
 
 	'''
-    print('experiment_xml')
-    print('dir_of_input_data', dir_of_input_data)
-    print('refname', refname)
-    print('data_file', data_file)
-    print('fastq_ends', fastq_ends)
     sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
-    print('sample_id_and_data', sample_id_and_data)
     # set the root element
     experiment_set = ET.Element('EXPERIMENT_SET')
 
@@ -558,7 +538,7 @@ def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_s
     print "\nSuccessfully created experiment.xml file\n"
 
 
-def run_xml(dir_of_input_data, refname, center_name, filetype, out_dir):
+def run_xml(dir_of_input_data, refname, center_name, filetype, out_dir, fastq_ends):
     '''
 	run_xml(dir_of_input_data,refname,center_name,filetype,out_dir):
 	
@@ -571,6 +551,7 @@ def run_xml(dir_of_input_data, refname, center_name, filetype, out_dir):
     refname, str: A unique name for the whole submission. This name must not have been used before in any other submission to ENA.
     filetype, str: the default is fastq.
     out_dir, str : name of the new xml file
+    fastq_ends, tuple: Tuple of strings of size 2 with fastq files end, e.g. ('.R1.fastq.gz', '.R2.fastq.gz')
 
     return
     ------
@@ -585,29 +566,30 @@ def run_xml(dir_of_input_data, refname, center_name, filetype, out_dir):
     with open(dir_of_input_data + '/' + refname + '_checksums.md5', 'rb') as f:
         for line1 in f:
             read1 = line1.split()
-            sample_name_split = read1[1].split(".")
-            sample_name = sample_name_split[0]
+            for fastq_end in fastq_ends:
+                sample_name = rchop(read1[1], fastq_end)
+                if len(sample_name) < len(read1[1]):
+                    break
             checksum_read1 = read1[0]
-            try:
-                # loop through every two lines, for read1 and read2
-                line2 = f.next()
-                read2 = line2.split()
-                checksum_read2 = read2[0]
-                # if there are pairs of reads
-                if sample_name in str(read2[1]):
-                    run = ET.SubElement(run_set, 'RUN', alias=sample_name, center_name=center_name,
-                                        run_center=center_name)
-                    # indent
-                    experiment_ref = ET.SubElement(run, 'EXPERIMENT_REF', refname=sample_name)
-                    data_block = ET.SubElement(run, 'DATA_BLOCK')
-                    files = ET.SubElement(data_block, 'FILES')
-                    file1 = ET.SubElement(files, 'FILE', checksum=checksum_read1, checksum_method="MD5",
-                                          filename=refname + "/" + read1[1], filetype=filetype)
-                    file2 = ET.SubElement(files, 'FILE', checksum=checksum_read2, checksum_method="MD5",
-                                          filename=refname + "/" + read2[1], filetype=filetype)
-            except StopIteration:
-                print "ERROR: no second read found for", sample_name
-                sys.exit()
+
+            # loop through every two lines, for read1 and read2
+            line2 = f.next()
+            read2 = line2.split()
+            checksum_read2 = read2[0]
+            # if there are pairs of reads
+            if sample_name in str(read2[1]):
+                run = ET.SubElement(run_set, 'RUN', alias=sample_name, center_name=center_name,
+                                    run_center=center_name)
+                # indent
+                experiment_ref = ET.SubElement(run, 'EXPERIMENT_REF', refname=sample_name)
+                data_block = ET.SubElement(run, 'DATA_BLOCK')
+                files = ET.SubElement(data_block, 'FILES')
+                file1 = ET.SubElement(files, 'FILE', checksum=checksum_read1, checksum_method="MD5",
+                                      filename=refname + "/" + read1[1], filetype=filetype)
+                file2 = ET.SubElement(files, 'FILE', checksum=checksum_read2, checksum_method="MD5",
+                                      filename=refname + "/" + read2[1], filetype=filetype)
+            else:
+                sys.exit("ERROR: no second read found for", sample_name)
 
             # use the indent function to indent the xml file
     indent(run_set)
