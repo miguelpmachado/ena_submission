@@ -409,8 +409,13 @@ def sample_xml(dir_of_input_data, refname, data_file, center_name, out_dir, fast
 
  	'''
 
+    print('sample_xml')
+    print('dir_of_input_data', dir_of_input_data)
+    print('refname', refname)
+    print('data_file', data_file)
+    print('fastq_ends', fastq_ends)
     sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
-    # print sample_id_and_data
+    print('sample_id_and_data', sample_id_and_data)
     if set(('SAMPLE', 'TAXON_ID', 'SCIENTIFIC_NAME', 'DESCRIPTION')) <= set(sample_id_and_data):
         sample_set = ET.Element('SAMPLE_SET')
         sample_scientific_name_description = set(['SAMPLE', 'TAXON_ID', 'SCIENTIFIC_NAME', 'DESCRIPTION'])
@@ -501,7 +506,13 @@ def experiment_xml(dir_of_input_data, data_file, refname, center_name, library_s
     outfile, file : a experiment xml file needed for ENA submission.
 
 	'''
+    print('experiment_xml')
+    print('dir_of_input_data', dir_of_input_data)
+    print('refname', refname)
+    print('data_file', data_file)
+    print('fastq_ends', fastq_ends)
     sample_id_and_data = create_dict_with_data(dir_of_input_data, refname, data_file, fastq_ends)
+    print('sample_id_and_data', sample_id_and_data)
     # set the root element
     experiment_set = ET.Element('EXPERIMENT_SET')
 
